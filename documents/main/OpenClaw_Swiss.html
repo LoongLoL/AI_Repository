@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw · 开源 AI 助手网关</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600&family=Noto+Sans+SC:wght@200;300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* 🔵 克莱因蓝 IKB */
+    --paper:#fafaf8;
+    --paper-rgb:250,250,248;
+    --ink:#0a0a0a;
+    --ink-rgb:10,10,10;
+    --grey-1:#f0f0ee;
+    --grey-2:#d4d4d2;
+    --grey-3:#737373;
+    --accent:#002FA7;
+    --accent-rgb:0,47,167;
+    --accent-on:#ffffff;
+    --accent-bright:#5B7BFF;
+    --text-primary:#0a0a0a;
+    --text-secondary:#525252;
+    --text-helper:#737373;
+    --text-placeholder:#a3a3a3;
+    --text-on-color:#ffffff;
+    --border-subtle:#e0e0e0;
+    --border-strong:#a3a3a3;
+    --sans:"Inter","Helvetica Neue","Helvetica","Arial","Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif;
+    --sans-zh:"PingFang SC","Hiragino Sans GB","Source Han Sans SC","Noto Sans SC","Microsoft YaHei UI","Microsoft YaHei","微软雅黑",sans-serif;
+    --mono:"JetBrains Mono","IBM Plex Mono","SF Mono","Cascadia Code","Consolas","Courier New",ui-monospace,monospace;
+    --sp-3:8px;--sp-4:12px;--sp-5:16px;--sp-6:24px;--sp-7:32px;--sp-8:40px;--sp-9:48px;--sp-10:64px;--sp-11:80px;--sp-12:96px;--sp-13:160px;
+    --ease-prod:cubic-bezier(.2,0,.38,.9);
+    --ease-exp:cubic-bezier(.4,.14,.3,1);
+    --ease-entry-prod:cubic-bezier(0,0,.38,.9);
+    --ease-entry-exp:cubic-bezier(0,0,.3,1);
+    --dur-fast-1:.07s;--dur-fast-2:.11s;--dur-mod-1:.15s;--dur-mod-2:.24s;--dur-slow-1:.4s;--dur-slow-2:.7s;
+    --nav-safe-bottom:8vh;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--paper);color:var(--ink);font-family:var(--sans),var(--sans-zh);-webkit-font-smoothing:antialiased}
+  canvas.bg{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:block;opacity:.55;mix-blend-mode:multiply;pointer-events:none}
+  body.dark-bg canvas.bg{mix-blend-mode:screen;opacity:.42}
+  body.low-power canvas.bg,body.low-power canvas.ascii-bg{display:none!important}
+  #deck{position:fixed;inset:0;width:10000vw;height:100vh;display:flex;flex-wrap:nowrap;transition:transform .9s cubic-bezier(.77,0,.175,1);z-index:10;will-change:transform}
+  .slide{width:100vw;height:100vh;flex:0 0 100vw;position:relative;padding:0;display:flex;flex-direction:column;overflow:hidden;background:var(--paper);color:var(--ink)}
+  .slide.dark{background:var(--ink);color:var(--paper)}
+  .slide.accent{background:var(--accent);color:var(--accent-on)}
+  .slide.hero.dark{background:rgba(var(--ink-rgb),.92);color:var(--paper)}
+  .slide.split .canvas-card{padding:0}
+  .canvas-card{width:100vw;height:100vh;padding:5.6vh 5vw 4.4vh;display:flex;flex-direction:column;overflow:hidden;position:relative}
+  .split-half{display:flex;flex-direction:row;width:100%;height:100%}
+  .half{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .half.b-accent{background:var(--accent);color:var(--accent-on)}
+  .chrome-min{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;opacity:.7;margin-bottom:var(--sp-9);flex-shrink:0}
+  .slide.accent .chrome-min,.slide.dark .chrome-min{opacity:.82}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;opacity:.65;margin-bottom:2.4vh}
+  .kicker.accent{color:var(--accent);opacity:1;font-weight:600}
+  .h-xl-zh{font-family:var(--sans),var(--sans-zh);font-weight:200;font-size:min(5vw,9vh);line-height:1.05;letter-spacing:-.025em}
+  .h-md{font-family:var(--sans),var(--sans-zh);font-weight:300;font-size:min(2.6vw,4.6vh);line-height:1.18;letter-spacing:-.015em}
+  .lead{font-family:var(--sans),var(--sans-zh);font-weight:400;font-size:min(1.55vw,2.8vh);line-height:1.5;opacity:.86}
+  .body{font-family:var(--sans),var(--sans-zh);font-weight:400;font-size:max(13px,min(1.05vw,2vh));line-height:1.6;opacity:.78}
+  .t-meta{font-family:var(--mono);font-size:max(10px,min(.78vw,1.4vh));letter-spacing:.18em;text-transform:uppercase;opacity:.6}
+  .tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;padding:4px 10px;border:1px solid currentColor;opacity:.8}
+  .tag.solid{background:currentColor;color:var(--paper);border-color:transparent}
+  .rule{width:100%;height:1px;background:currentColor;opacity:.18}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-8)}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-8)}
+  .grid-6{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-6)}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-8)}
+  .cell-card{display:flex;flex-direction:column;gap:1.2vh;padding-top:2vh;border-top:1px solid var(--border-subtle)}
+  .card-fill{background:var(--grey-1);padding:2.8vh 2.2vw;display:flex;flex-direction:column;gap:1.2vh}
+  .stat-card{display:flex;flex-direction:column;gap:.6vh;padding-top:1.6vh;border-top:2px solid currentColor}
+  .stat-card .stat-nb{font-family:var(--sans);font-weight:800;font-size:min(5.6vw,10vh);line-height:.88;letter-spacing:-.035em;font-feature-settings:"tnum"}
+  .stat-card .stat-label{font-family:var(--mono);font-size:max(10px,min(.78vw,1.4vh));letter-spacing:.24em;text-transform:uppercase;opacity:.6}
+
+  /* Timeline horizontal */
+  .timeline-h{display:flex;justify-content:space-between;align-items:flex-start;position:relative;padding-top:3vh}
+  .timeline-h::before{content:"";position:absolute;top:calc(2.4vh + 4px);left:0;right:0;height:1px;background:var(--border-subtle)}
+  .tl-h-node{display:flex;flex-direction:column;align-items:center;gap:1.4vh;flex:1;position:relative}
+  .tl-h-node .num{font-family:var(--mono);font-size:max(11px,.9vw);letter-spacing:.12em;opacity:.5}
+  .tl-h-node .dot{width:8px;height:8px;background:var(--ink);position:relative;z-index:1}
+  .slide.dark .tl-h-node .dot{background:var(--paper)}
+  .tl-h-node .lbl{font-family:var(--sans),var(--sans-zh);font-weight:300;font-size:max(12px,1vw);text-align:center;opacity:.8}
+
+  /* Duo compare */
+  .duo-compare{display:grid;grid-template-columns:1fr 1px 1fr;gap:var(--sp-8);flex:1;align-items:center;padding-top:2vh}
+  .duo-half{display:flex;flex-direction:column;gap:2.4vh}
+  .vrule{width:1px;height:70%;background:var(--border-subtle);justify-self:center;align-self:center}
+
+  /* Six cells */
+  .sub-grid-3-2{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:var(--sp-6);flex:1}
+  .cell-6-item{display:flex;flex-direction:column;gap:1.2vh;padding:2.4vh 1.6vw;border:1px solid var(--border-subtle);justify-content:center}
+  .cell-6-item .ico{width:32px;height:32px;margin-bottom:.6vh;position:relative}
+  .cell-6-item .ico svg{width:32px;height:32px;stroke-width:1.4}
+
+  /* Three layers / sub-card stack */
+  .stack-row{display:flex;gap:var(--sp-6);flex:1;padding-top:2vh}
+  .stack-card{flex:1;display:flex;flex-direction:column;gap:1.6vh;padding:2.8vh 2vw;border-top:2px solid var(--accent)}
+  .stack-card .num{font-family:var(--sans);font-weight:200;font-size:min(4.6vw,8vh);line-height:.88;letter-spacing:-.04em;color:var(--accent)}
+
+  /* Statement */
+  .h-statement{font-family:var(--sans),var(--sans-zh);font-weight:200;font-size:min(7.6vw,13.6vh);line-height:1.02;letter-spacing:-.025em;max-width:80%}
+  .stmt-anchor{font-family:var(--mono);font-size:max(11px,.9vw);letter-spacing:.2em;text-transform:uppercase;opacity:.5;margin-top:auto;padding-top:2vh}
+
+  /* Why now */
+  .why-now-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-7);flex:1;padding-top:2vh}
+  .why-col{display:flex;flex-direction:column;gap:1.6vh}
+  .why-col .why-num-bottom{font-family:var(--sans);font-weight:200;font-size:min(8.4vw,14vh);line-height:.88;letter-spacing:-.04em;margin-top:auto;padding-top:3vh}
+  .why-col:last-child .why-num-bottom{color:var(--accent)}
+
+  /* Closing takeaway */
+  .takeaway-list{display:flex;flex-direction:column;gap:2.4vh;flex:1;justify-content:center}
+  .takeaway-item{display:flex;flex-direction:column;gap:.6vh;padding:1.6vh 0;border-bottom:1px solid var(--border-subtle)}
+  .takeaway-item:last-child{border-bottom:none}
+  .takeaway-item .num{font-family:var(--mono);font-size:max(10px,.8vw);letter-spacing:.2em;opacity:.5}
+
+  /* nav dots */
+  #nav{position:fixed;bottom:2vh;left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:100;pointer-events:none}
+  #nav .dot{width:6px;height:6px;border-radius:0;background:var(--grey-3);transition:all .3s;pointer-events:auto;cursor:pointer}
+  #nav .dot.active{background:var(--ink);width:18px}
+  .slide.dark~#nav .dot,.slide.accent~#nav .dot{background:rgba(255,255,255,.45)}
+  .slide.dark~#nav .dot.active,.slide.accent~#nav .dot.active{background:#fff;width:18px}
+
+  /* Low power indicator */
+  #power-state{position:fixed;bottom:2vh;right:2vw;font-family:var(--mono);font-size:10px;letter-spacing:.16em;z-index:100;opacity:.35;pointer-events:none}
+
+  /* Utility */
+  .nav-safe-bottom{margin-bottom:var(--nav-safe-bottom)}
+  .mt-auto{margin-top:auto}
+  .flex-1{flex:1}
+  .gap-2{gap:2vh}
+  .gap-3{gap:3vh}
+</style>
+</head>
+<body>
+<div id="deck">
+
+<!-- ══════════════════════ P1 · COVER · IKB 满屏 + ASCII ══════════════════════ -->
+<section class="slide accent" data-animate="hero">
+  <div class="canvas-card">
+    <canvas class="ascii-bg" aria-hidden="true"></canvas>
+    <div class="chrome-min">
+      <div class="l">Field Note · Open Source AI Gateway</div>
+      <div class="r">SS · 26.05.16 · 01 / 08</div>
+    </div>
+    <div style="flex:1;padding:0;display:grid;grid-template-rows:auto 1fr auto;gap:2.6vh">
+      <div data-anim="kicker" class="t-meta" style="color:rgba(255,255,255,.78);letter-spacing:.22em">AI GATEWAY · OPEN SOURCE</div>
+      <h1 data-anim="title" style="align-self:center;font-family:var(--sans),var(--sans-zh);font-weight:200;font-size:min(11.6vw,19vh);line-height:.94;letter-spacing:-.025em;color:#fff">
+        Open<span style="font-style:italic;font-weight:300">Claw</span><br/>你的 AI 网关
+      </h1>
+      <div data-anim="bottom" style="display:grid;grid-template-rows:auto auto;gap:1.6vh;border-top:1px solid rgba(255,255,255,.22);padding-top:2vh">
+        <div data-anim="lead" class="lead" style="max-width:52ch;color:rgba(255,255,255,.86);font-weight:300">连接 AI 模型与 20+ 通讯渠道，开源、可扩展、私有化部署。</div>
+        <div style="display:flex;justify-content:space-between;align-items:end">
+          <div class="t-meta" style="color:rgba(255,255,255,.6)">虾仁 🦅 · 数字战略家</div>
+          <div class="t-meta" style="color:rgba(255,255,255,.6)">→ swipe / arrow keys</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ S19 · FOUR CARDS · 四大特性 ══════════════════════ -->
+<section class="slide light" data-animate="grid-reveal">
+  <div class="canvas-card">
+    <div class="chrome-min">
+      <div class="l">FEATURES · CORE</div>
+      <div class="r">02 / 08</div>
+    </div>
+    <div data-anim="head" style="display:flex;flex-direction:column;gap:1.4vh;margin-bottom:4vh">
+      <div class="kicker" style="color:var(--accent)">04 MODULES</div>
+      <h2 class="h-xl-zh">四大核心能力</h2>
+    </div>
+    <div class="rule" style="width:100%;height:1px;background:var(--accent);opacity:1;height:2px;margin-bottom:var(--sp-8)"></div>
+    <div class="grid-4" data-anim="up">
+      <div class="cell-card">
+        <div class="t-meta" style="color:var(--accent)">— 01 / MODELS</div>
+        <h3 class="h-md">多模型支持</h3>
+        <p class="body" style="flex:1">Anthropic · OpenAI · Google · DeepSeek · Ollama · OpenRouter 等 40+ 模型，自动故障切换</p>
+      </div>
+      <div class="cell-card">
+        <div class="t-meta" style="color:var(--accent)">— 02 / CHANNELS</div>
+        <h3 class="h-md">多通讯渠道</h3>
+        <p class="body" style="flex:1">Telegram · WhatsApp · Discord · 微信 · Signal · Slack · 飞书 等 20+ 平台</p>
+      </div>
+      <div class="cell-card">
+        <div class="t-meta" style="color:var(--accent)">— 03 / SKILLS</div>
+        <h3 class="h-md">插件扩展</h3>
+        <p class="body" style="flex:1">Skill 文件即插即用，从 ClawHub 市场安装或自行编写，按需扩展功能</p>
+      </div>
+      <div class="cell-card">
+        <div class="t-meta" style="color:var(--accent)">— 04 / MEMORY</div>
+        <h3 class="h-md">持久记忆</h3>
+        <p class="body" style="flex:1">文件式记忆系统，跨会话保持上下文，支持语义搜索与自动归档</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ S05 · THREE LAYERS · 安装方式 ══════════════════════ -->
+<section class="slide dark" data-animate="grid-reveal">
+  <div class="canvas-card">
+    <div class="chrome-min">
+      <div class="l">INSTALL · METHODS</div>
+      <div class="r">03 / 08</div>
+    </div>
+    <div data-anim="head" style="display:flex;flex-direction:column;gap:1.4vh;margin-bottom:3vh">
+      <div class="kicker" style="color:var(--accent-bright)">03 WAYS</div>
+      <h2 class="h-xl-zh">安装方式</h2>
+    </div>
+    <div class="stack-row" data-anim="up">
+      <div class="stack-card" style="border-top-color:var(--accent-bright)">
+        <div class="num">01</div>
+        <h3 class="h-md" style="opacity:.9">一键脚本</h3>
+        <div style="font-family:var(--mono);font-size:max(10px,.82vw);opacity:.7;line-height:1.7">curl -fsSL<br/>https://openclaw.ai/install.sh<br/>| bash</div>
+        <p class="body-sm" style="opacity:.65">macOS / Linux / WSL2 通用</p>
+      </div>
+      <div class="stack-card" style="border-top-color:var(--accent-bright)">
+        <div class="num">02</div>
+        <h3 class="h-md" style="opacity:.9">npm 全局安装</h3>
+        <div style="font-family:var(--mono);font-size:max(10px,.82vw);opacity:.7;line-height:1.7">npm install -g openclaw<br/>openclaw onboard<br/>--install-daemon</div>
+        <p class="body-sm" style="opacity:.65">Node.js 24+ 环境</p>
+      </div>
+      <div class="stack-card" style="border-top-color:var(--accent-bright)">
+        <div class="num">03</div>
+        <h3 class="h-md" style="opacity:.9">Docker 部署</h3>
+        <div style="font-family:var(--mono);font-size:max(10px,.82vw);opacity:.7;line-height:1.7">docker pull openclaw/<br/>gateway:latest</div>
+        <p class="body-sm" style="opacity:.65">容器化 / 服务器 / K8s</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ S11 · HORIZONTAL TIMELINE · 安装流程 ══════════════════════ -->
+<section class="slide light" data-animate="timeline-walk">
+  <div class="canvas-card">
+    <div class="chrome-min">
+      <div class="l">SETUP · STEPS</div>
+      <div class="r">04 / 08</div>
+    </div>
+    <div data-anim="head" style="display:flex;flex-direction:column;gap:1.4vh;margin-bottom:2vh">
+      <div class="kicker" style="color:var(--accent)">4-STEP</div>
+      <h2 class="h-xl-zh">5 分钟快速上手</h2>
+    </div>
+    <div class="timeline-h" data-anim="up" style="flex:1;display:flex;flex-direction:column;justify-content:center">
+      <div style="display:flex;width:100%;position:relative;padding:3vh 0">
+        <div style="position:absolute;top:calc(2.4vh + 4px);left:0;right:0;height:1px;background:var(--border-subtle)"></div>
+        <div class="tl-h-node"><span class="num">01</span><span class="dot"></span><span class="lbl">安装</span><span class="body-sm" style="opacity:.65;text-align:center;max-width:16ch">一键脚本<br/>npm / Docker</span></div>
+        <div class="tl-h-node"><span class="num">02</span><span class="dot"></span><span class="lbl">配置</span><span class="body-sm" style="opacity:.65;text-align:center;max-width:16ch">模型提供商<br/>API Key · 网关 Token</span></div>
+        <div class="tl-h-node"><span class="num">03</span><span class="dot"></span><span class="lbl">连接</span><span class="body-sm" style="opacity:.65;text-align:center;max-width:16ch">Telegram / WhatsApp<br/>等频道配对</span></div>
+        <div class="tl-h-node"><span class="num">04</span><span class="dot"></span><span class="lbl">扩展</span><span class="body-sm" style="opacity:.65;text-align:center;max-width:16ch">安装 Skills<br/>配置自动化</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ S04 · SIX CELLS · 支持频道 ══════════════════════ -->
+<section class="slide dark" data-animate="six-cells">
+  <div class="canvas-card">
+    <div class="chrome-min">
+      <div class="l">CHANNELS · ECOSYSTEM</div>
+      <div class="r">05 / 08</div>
+    </div>
+    <div data-anim="head" style="display:flex;flex-direction:column;gap:1.4vh;margin-bottom:3vh">
+      <div class="kicker" style="color:var(--accent-bright)">20+ PLATFORMS</div>
+      <h2 class="h-xl-zh">多平台触达</h2>
+    </div>
+    <div class="sub-grid-3-2" data-anim="up">
+      <div class="cell-6-item"><div class="t-meta" style="color:var(--accent-bright)">TELEGRAM</div><div class="h-md" style="opacity:.9">✈ Telegram</div><p class="body-sm" style="opacity:.65">Bot Token 一键接入</p></div>
+      <div class="cell-6-item"><div class="t-meta" style="color:var(--accent-bright)">WHATSAPP</div><div class="h-md" style="opacity:.9">💬 WhatsApp</div><p class="body-sm" style="opacity:.65">Meta API 官方通道</p></div>
+      <div class="cell-6-item"><div class="t-meta" style="color:var(--accent-bright)">DISCORD</div><div class="h-md" style="opacity:.9">🎮 Discord</div><p class="body-sm" style="opacity:.65">Bot + 斜杠命令</p></div>
+      <div class="cell-6-item"><div class="t-meta" style="color:var(--accent-bright)">WECHAT</div><div class="h-md" style="opacity:.9">💚 微信</div><p class="body-sm" style="opacity:.65">企业微信 Webhook</p></div>
+      <div class="cell-6-item"><div class="t-meta" style="color:var(--accent-bright)">SIGNAL</div><div class="h-md" style="opacity:.9">🔒 Signal</div><p class="body-sm" style="opacity:.65">端到端加密通信</p></div>
+      <div class="cell-6-item"><div class="t-meta" style="color:var(--accent-bright)">SLACK / FEISHU / IRC / ...</div><div class="h-md" style="opacity:.9">📡 更多</div><p class="body-sm" style="opacity:.65">20+ 渠道，持续扩展</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ P18 · WHY NOW · 三列递进 ══════════════════════ -->
+<section class="slide light" data-animate="why-now">
+  <div class="canvas-card">
+    <div class="chrome-min">
+      <div class="l">WHY · OPENCLAW</div>
+      <div class="r">06 / 08</div>
+    </div>
+    <div data-anim="head" style="display:flex;flex-direction:column;gap:1.4vh;margin-bottom:2vh">
+      <div class="kicker" style="color:var(--accent)">3 REASONS</div>
+      <h2 class="h-xl-zh">为什么选 OpenClaw</h2>
+    </div>
+    <div class="why-now-grid" data-anim="up">
+      <div class="why-col">
+        <div class="t-meta" style="color:var(--accent)">REASON 01</div>
+        <h3 class="h-md">私有化部署</h3>
+        <p class="body">数据不出本机。所有对话、文件、记忆都在你自己的服务器上，无需第三方中转。</p>
+        <div class="why-num-bottom">100%</div>
+        <div class="t-meta" style="padding-top:1vh">数据主权</div>
+      </div>
+      <div class="why-col">
+        <div class="t-meta" style="color:var(--accent)">REASON 02</div>
+        <h3 class="h-md">自由选择模型</h3>
+        <p class="body">不绑定单一厂商。Claude / GPT / Gemini / DeepSeek / 本地模型任意切换或同时使用。</p>
+        <div class="why-num-bottom">40+</div>
+        <div class="t-meta" style="padding-top:1vh">模型支持</div>
+      </div>
+      <div class="why-col">
+        <div class="t-meta" style="color:var(--accent)">REASON 03</div>
+        <h3 class="h-md">开放生态</h3>
+        <p class="body">完全开源（MIT 协议），活跃社区，Skills 市场 ClawHub，可自定义扩展每一层。</p>
+        <div class="why-num-bottom">100%</div>
+        <div class="t-meta" style="padding-top:1vh">开放 · 可扩展</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ P3 · STATEMENT · 核心宣言 ══════════════════════ -->
+<section class="slide dark" data-animate="statement-rise">
+  <div class="canvas-card">
+    <div class="chrome-min">
+      <div class="l">MANIFESTO · CORE</div>
+      <div class="r">07 / 08</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 3vw">
+      <div data-anim="kicker" class="kicker" style="color:var(--accent-bright);margin-bottom:3vh">MANIFESTO</div>
+      <h1 class="h-statement" style="color:var(--paper);font-size:min(7.6vw,13.6vh);max-width:90%">
+        <span data-anim="line" style="display:block">你的 AI 助手，</span>
+        <span data-anim="line" style="display:block;color:var(--accent-bright)">你控制。</span>
+      </h1>
+      <p data-anim="lead" class="lead" style="margin-top:4vh;max-width:56ch;opacity:.7;color:var(--paper)">开源 · 私有 · 可扩展。OpenClaw 让你拥有一个真正属于自己的 AI 助手。</p>
+    </div>
+    <span class="stmt-anchor" style="color:var(--paper);opacity:.4">— Manifesto · 07</span>
+  </div>
+</section>
+
+<!-- ══════════════════════ P9 · CLOSING · IKB + ASCII + Takeaway ══════════════════════ -->
+<section class="slide split" data-animate="split-statement">
+  <div class="canvas-card" style="padding:0;display:flex;height:100vh">
+    <div class="split-half" style="display:flex;flex-direction:row;width:100%;height:100%">
+      <div class="half b-accent" style="padding:5.6vh 3.6vw 4.4vh;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden">
+        <canvas class="ascii-bg" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;z-index:0"></canvas>
+        <div class="chrome-min" style="margin-bottom:0;position:relative;z-index:1">
+          <div class="l">08 / 08</div>
+          <div class="r">CLOSING</div>
+        </div>
+        <div data-anim="manifesto" style="display:flex;flex-direction:column;gap:2vh;position:relative;z-index:1">
+          <div class="t-meta" style="color:rgba(255,255,255,.78);letter-spacing:.22em;margin-bottom:1.6vh">MANIFESTO</div>
+          <h2 style="font-family:var(--sans),var(--sans-zh);font-size:min(8vw,14vh);line-height:.94;letter-spacing:-.025em;font-weight:200;color:#fff">
+            Build your<br/><span style="font-style:italic;font-weight:300">own</span> AI.
+          </h2>
+          <div style="font-family:var(--sans),var(--sans-zh);font-size:max(13px,1vw);line-height:1.6;color:rgba(255,255,255,.82);font-weight:300;max-width:36ch;margin-top:1.4vh">从安装到使用，不超过 5 分钟。</div>
+        </div>
+        <div data-anim="signature" style="display:flex;justify-content:space-between;align-items:end;border-top:1px solid rgba(255,255,255,.22);padding-top:2vh;position:relative;z-index:1">
+          <div class="t-meta" style="color:rgba(255,255,255,.62)">虾仁 🦅</div>
+          <div class="t-meta" style="color:rgba(255,255,255,.62)">26.05.16</div>
+        </div>
+      </div>
+      <div class="half" style="padding:5.6vh 3.6vw 4.4vh;display:flex;flex-direction:column;justify-content:space-between">
+        <div class="chrome-min"><div class="l">TAKEAWAYS</div><div class="r">03 RULES</div></div>
+        <div data-anim="rules" class="takeaway-list">
+          <div class="takeaway-item"><span class="num">01</span><div style="font-family:var(--sans),var(--sans-zh);font-weight:300;font-size:min(2vw,3.6vh)">5 分钟安装</div><p class="body-sm">一键脚本，无需复杂配置</p></div>
+          <div class="takeaway-item"><span class="num">02</span><div style="font-family:var(--sans),var(--sans-zh);font-weight:300;font-size:min(2vw,3.6vh)">20+ 频道可用</div><p class="body-sm">随心选择你习惯的平台</p></div>
+          <div class="takeaway-item"><span class="num" style="color:var(--accent)">03</span><div style="font-family:var(--sans),var(--sans-zh);font-weight:300;font-size:min(2vw,3.6vh);color:var(--accent)">100% 开源</div><p class="body-sm" style="color:var(--ink)">MIT 协议 · 社区驱动 · 永不被锁定</p></div>
+        </div>
+        <div class="t-meta" style="color:var(--text-helper);text-align:right">→ 完 · docs.openclaw.ai</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><!-- /#deck -->
+
+<!-- ════════════════ Navigation Dots ════════════════ -->
+<div id="nav"></div>
+<div id="power-state">B 静态</div>
+
+<!-- ════════════════ Lucide Icons ════════════════ -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<!-- ════════════════ Motion One (bundled local) ════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/motion@11.11.17/dist/motion.js"></script>
+
+<script>
+/* ────────────── Config ────────────── */
+const TOTAL = 8;
+const EASE_PROD = [.2,0,.38,.9];
+const EASE_ENTRY = [0,0,.3,1];
+const DUR = 480;
+
+/* ────────────── Init nav ────────────── */
+const nav = document.getElementById('nav');
+for(let i=0;i<TOTAL;i++){const d=document.createElement('span');d.className='dot';nav.appendChild(d)}
+
+/* ────────────── Slide index state ────────────── */
+let idx = 0;
+const deck = document.getElementById('deck');
+
+/* ────────────── Navigation ────────────── */
+function go(n){
+  n = Math.max(0, Math.min(TOTAL-1, n));
+  if(n===idx) return;
+  idx=n;
+  deck.style.transform = `translateX(-${idx*100}vw)`;
+  document.querySelectorAll('#nav .dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
+  playSlide(idx);
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' '){e.preventDefault();go(idx+1)}
+  else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();go(idx-1)}
+  else if(e.key==='Home'){e.preventDefault();go(0)}
+  else if(e.key==='End'){e.preventDefault();go(TOTAL-1)}
+  else if(e.key==='Escape'){e.preventDefault();/* could show index */}
+  else if(e.key==='b'||e.key==='B'){
+    document.body.classList.toggle('low-power');
+    document.getElementById('power-state').textContent = document.body.classList.contains('low-power')?'B 动态':'B 静态';
+    try{localStorage.setItem('swiss-low-power',document.body.classList.contains('low-power')?'1':'0')}catch(e){}
+  }
+});
+
+let touchStartX=0;
+document.addEventListener('touchstart',e=>{touchStartX=e.changedTouches[0].screenX});
+document.addEventListener('touchend',e=>{
+  const dx = e.changedTouches[0].screenX - touchStartX;
+  if(Math.abs(dx)>50) go(dx<0?idx+1:idx-1);
+});
+
+nav.addEventListener('click',e=>{
+  if(e.target.classList.contains('dot')){
+    const i = [...nav.children].indexOf(e.target);
+    if(i>=0) go(i);
+  }
+});
+
+/* ────────────── Scroll wheel ────────────── */
+let wheelTimer;
+document.addEventListener('wheel',e=>{
+  clearTimeout(wheelTimer);
+  wheelTimer=setTimeout(()=>{
+    if(e.deltaY>0) go(idx+1);
+    else if(e.deltaY<0) go(idx-1);
+  },50);
+},{passive:true});
+
+/* ────────────── Play slide animations ────────────── */
+async function playSlide(i){
+  const slide = document.querySelectorAll('.slide')[i];
+  if(!slide) return;
+  // Wait for Motion to be ready
+  if(typeof Motion === 'undefined' && typeof window.Motion === 'undefined') return;
+
+  const { animate, scroll, inView, motionValue, spring, stagger, timeline } = (typeof Motion !== 'undefined' ? Motion : window.Motion);
+
+  // Find all data-anim elements
+  const animEls = slide.querySelectorAll('[data-anim]');
+  if(!animEls.length) return;
+
+  // Build timeline based on data-anim type
+  const recipe = slide.getAttribute('data-animate') || 'cascade';
+  const entries = [];
+
+  if(recipe === 'hero'){
+    animEls.forEach(el => {
+      const tag = el.getAttribute('data-anim');
+      if(tag==='kicker') entries.push([el,{opacity:[0,1],x:[-20,0]},{duration:DUR*.6,easing:EASE_ENTRY,delay:DUR*.15}]);
+      else if(tag==='title') entries.push([el,{opacity:[0,1],y:[40,0],scale:[.98,1]},{duration:DUR*.9,easing:EASE_ENTRY,delay:DUR*.35}]);
+      else if(tag==='lead'||tag==='bottom') entries.push([el,{opacity:[0,1],y:[20,0]},{duration:DUR*.6,easing:EASE_ENTRY,delay:DUR*.65}]);
+    });
+  } else if(recipe === 'timeline-walk'){
+    animEls.forEach(el => {
+      const tag = el.getAttribute('data-anim');
+      if(tag==='head') entries.push([el,{opacity:[0,1],y:[-15,0]},{duration:300,easing:EASE_ENTRY}]);
+      else if(tag==='up'){
+        const nodes = el.querySelectorAll('.tl-h-node');
+        nodes.forEach((n,j)=>entries.push([n,{opacity:[0,1],y:[20,0]},{duration:360,easing:EASE_ENTRY,delay:200+j*220}]));
+      }
+    });
+  } else if(recipe === 'statement-rise'){
+    const lines = slide.querySelectorAll('[data-anim="line"]');
+    lines.forEach((l,j)=>entries.push([l,{opacity:[0,1],y:[30,0]},{duration:500,easing:EASE_ENTRY,delay:300+j*180}]));
+    animEls.forEach(el => {
+      const tag = el.getAttribute('data-anim');
+      if(tag==='kicker') entries.push([el,{opacity:[0,1],x:[-15,0]},{duration:300,easing:EASE_ENTRY}]);
+      else if(tag==='lead') entries.push([el,{opacity:[0,1],y:[20,0]},{duration:400,easing:EASE_ENTRY,delay:700}]);
+    });
+  } else if(recipe === 'why-now'){
+    animEls.forEach(el => {
+      if(el.getAttribute('data-anim')==='head') entries.push([el,{opacity:[0,1],y:[-15,0]},{duration:300,easing:EASE_ENTRY}]);
+    });
+    const cols = slide.querySelectorAll('.why-col');
+    cols.forEach((c,j)=>entries.push([c,{opacity:[0,1],y:[25,0]},{duration:400,easing:EASE_ENTRY,delay:250+j*160}]));
+  } else if(recipe === 'split-statement'){
+    const halves = slide.querySelectorAll('.half');
+    halves.forEach((h,j)=>entries.push([h,{opacity:[0,1],x:[j===0?-30:30,0]},{duration:500,easing:EASE_ENTRY,delay:100+j*300}]));
+    animEls.forEach(el => {
+      const tag = el.getAttribute('data-anim');
+      if(tag==='manifesto') entries.push([el,{opacity:[0,1],y:[25,0]},{duration:400,easing:EASE_ENTRY,delay:450}]);
+      else if(tag==='signature') entries.push([el,{opacity:[0,1]},{duration:300,delay:700}]);
+      else if(tag==='rules'){
+        const items = el.querySelectorAll('.takeaway-item');
+        items.forEach((it,k)=>entries.push([it,{opacity:[0,1],x:[-20,0]},{duration:350,easing:EASE_ENTRY,delay:500+k*200}]));
+      }
+    });
+  } else if(recipe === 'six-cells'){
+    animEls.forEach(el => {
+      if(el.getAttribute('data-anim')==='head') entries.push([el,{opacity:[0,1],y:[-15,0]},{duration:300,easing:EASE_ENTRY}]);
+    });
+    const cells = slide.querySelectorAll('.cell-6-item');
+    cells.forEach((c,j)=>entries.push([c,{opacity:[0,1],y:[20,0]},{duration:350,easing:EASE_ENTRY,delay:200+j*90}]));
+  } else {
+    // Default cascade
+    animEls.forEach((el,j) => {
+      entries.push([el,{opacity:[0,1],y:[15,0]},{duration:350,easing:EASE_ENTRY,delay:100+j*100}]);
+    });
+  }
+
+  // Set all to opacity 0 first
+  animEls.forEach(el => {el.style.opacity='0'});
+
+  if(entries.length && typeof timeline === 'function'){
+    try {
+      timeline(entries);
+    } catch(e){
+      // Fallback: just show everything
+      animEls.forEach(el => {el.style.opacity='1'});
+    }
+  } else {
+    animEls.forEach(el => {el.style.opacity='1'});
+  }
+}
+
+/* ────────────── ASCII Background IIFE ────────────── */
+(function(){
+  let asciiCanvases = [];
+  document.querySelectorAll('canvas.ascii-bg').forEach(canvas=>{
+    asciiCanvases.push(canvas);
+  });
+  if(!asciiCanvases.length) return;
+  if(document.body.classList.contains('low-power')) return;
+
+  const CHARS = '·*+░▒▓█░▒▓█░▒▓█';
+  const COLS = 80, ROWS = 30;
+
+  function initAsciiCanvas(canvas){
+    const ctx = canvas.getContext('2d');
+    const W = canvas.parentElement.clientWidth || window.innerWidth;
+    const H = canvas.parentElement.clientHeight || window.innerHeight;
+    canvas.width = W; canvas.height = H;
+
+    const cellW = W/COLS, cellH = H/ROWS;
+    const time = Date.now()/1000;
+
+    ctx.font = `${Math.min(cellW,cellH)*1.1}px "JetBrains Mono", monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const x = c*cellW+cellW/2;
+        const y = r*cellH+cellH/2;
+        const val = (Math.sin(c*.3+time*.5)+Math.cos(r*.3+time*.4)+1.8)/3.6*CHARS.length;
+        const idx = Math.floor(val)%CHARS.length;
+        const bright = .25+.75*(1-Math.abs(val/CHARS.length-.5)*2);
+        ctx.fillStyle = `rgba(255,255,255,${bright*.28})`;
+        ctx.fillText(CHARS[idx],x,y);
+      }
+    }
+    requestAnimationFrame(()=>initAsciiCanvas(canvas));
+  }
+
+  asciiCanvases.forEach(c=>initAsciiCanvas(c));
+})();
+
+/* ────────────── Restore low-power & first slide ────────────── */
+try{if(localStorage.getItem('swiss-low-power')==='1'){document.body.classList.add('low-power');document.getElementById('power-state').textContent='B 动态'}}catch(e){}
+go(0);
+</script>
+</body>
+</html>

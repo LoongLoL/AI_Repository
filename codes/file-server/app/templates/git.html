@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="wrap">
+  <div class="hdr git-hdr">
+    <div>
+      <h1>{{ title }} <span class="bdg">{{ total }} 个仓库</span></h1>
+      <p>git://{{ host_ip }} &middot; http://{{ host_ip }}:3000 &middot; git clone 一键下载</p>
+    </div>
+    <a href="/" class="back-link">← 返回文件</a>
+  </div>
+
+  <div class="lst">
+    {% if repos %}
+      {% for repo in repos %}
+      <div class="it git-item">
+        <div class="ico">📦</div>
+        <div class="fi">
+          <div class="fn">{{ repo.name }}</div>
+          <div class="fm">{{ repo.description }}</div>
+          {% if repo.last_commit and repo.last_commit != "—" %}
+          <div class="fm" style="margin-top:4px;font-family:monospace;font-size:10px;color:#888">
+            🔖 {{ repo.last_commit }}
+          </div>
+          {% endif %}
+        </div>
+        <div class="ac">
+          <button class="copy-btn" onclick="copyUrl('{{ repo.git_url }}', this)" title="git:// clone">📋 git://</button>
+          <button class="copy-btn" onclick="copyUrl('{{ repo.http_url }}', this)" title="HTTP clone" style="background:#f0fdf4;color:#16a34a">📋 http</button>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="it" style="justify-content:center;padding:40px;color:#999">
+        <div class="fi" style="text-align:center">暂无 Git 仓库</div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="ftr">
+    Git 服务器 &middot; <code>git clone git://{{ host_ip }}/&lt;repo&gt;.git</code> &middot; HTTP :3000
+  </div>
+</div>
+
+<script>
+function copyUrl(url, btn) {
+  navigator.clipboard.writeText("git clone " + url).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = "✅ 已复制";
+    btn.style.background = "#e8f5e9";
+    btn.style.color = "#2e7d32";
+    setTimeout(function() {
+      btn.textContent = orig;
+      btn.style.background = "";
+      btn.style.color = "";
+    }, 2000);
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="wrap">
+  <div class="hdr">
+    <h1>{{ title }} <span class="bdg">{{ count }}</span></h1>
+    <div class="nav-links">
+      <a href="/git">📦 Git 仓库</a>
+    </div>
+    <p>{{ host }}</p>
+  </div>
+
+  <div class="lst">
+    {% for item in items %}
+    <div class="it">
+      <div class="ico">{{ item.emoji }}</div>
+      <div class="fi">
+        <div class="fn">{{ item.name }}</div>
+        <div class="fm">{{ item.size }} &middot; {{ item.date }}</div>
+      </div>
+      <div class="ac">
+        {% if item.show_view %}
+        <a href="{{ item.encoded }}" class="v" title="查看" target="_blank">👁</a>
+        {% endif %}
+        {% if item.show_edit %}
+        <a href="/edit?file={{ item.encoded }}" class="e" title="编辑" target="_blank">✏️</a>
+        {% endif %}
+        <a href="{{ item.encoded }}" class="d" title="下载" download>⬇</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if total_pages > 1 %}
+  <div class="pg">
+    {% if page > 1 %}
+    <a href="/?page={{ page - 1 }}">&laquo;</a>
+    {% endif %}
+
+    {% set ns = namespace(pages=[]) %}
+    {% if total_pages <= 7 %}
+      {% for n in range(1, total_pages + 1) %}
+        {% set _ = ns.pages.append(n) %}
+      {% endfor %}
+    {% else %}
+      {% set _ = ns.pages.append(1) %}
+      {% set start = [2, page - 1] | max %}
+      {% set end = [total_pages - 1, page + 1] | min %}
+      {% if start > 2 %}
+        {% set _ = ns.pages.append("...") %}
+      {% endif %}
+      {% for n in range(start, end + 1) %}
+        {% set _ = ns.pages.append(n) %}
+      {% endfor %}
+      {% if end < total_pages - 1 %}
+        {% set _ = ns.pages.append("...") %}
+      {% endif %}
+      {% set _ = ns.pages.append(total_pages) %}
+    {% endif %}
+
+    {% for num in ns.pages %}
+      {% if num == "..." %}
+      <span class="d">…</span>
+      {% else %}
+      <a href="/?page={{ num }}"{% if num == page %} class="c"{% endif %}>{{ num }}</a>
+      {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+    <a href="/?page={{ page + 1 }}">&raquo;</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="ftr">文件服务器 &middot; 7890</div>
+</div>
+{% endblock %}

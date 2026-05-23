@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set body_class = "editor-page" %}
+{% block body %}
+<div class="wrap editor-wrap">
+  <div class="hdr">
+    <h1>✏️ {{ filename }}</h1>
+    <div style="display:flex;gap:12px;align-items:center">
+      <a href="/git">📦 Git</a>
+      <a href="/">← 返回</a>
+    </div>
+  </div>
+  <div class="body editor-body">
+    <textarea id="ta">{{ content }}</textarea>
+  </div>
+  <div class="tb">
+    <div class="info">编码：UTF-8 &middot; {{ lines }} 行</div>
+    <div class="btns">
+      <div id="toast" class="toast"></div>
+      <button id="saveBtn" class="btn-sv">💾 保存</button>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script>initEditor("{{ file_encoded | safe }}");</script>
+{% endblock %}
