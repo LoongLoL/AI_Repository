@@ -10,7 +10,7 @@ class Config:
 
     serve_dir: str = field(
         default_factory=lambda: os.getenv(
-            "FILESERVER_DIR", "/root/.openclaw/workspace/projects/downloads"
+            "FILESERVER_DIR", "/data/documents/main"
         )
     )
     port: int = field(
