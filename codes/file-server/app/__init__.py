@@ -41,40 +41,66 @@ def create_app() -> Flask:
 
 
 def _serve_directory_listing() -> str:
-    """Render the paginated file-list page."""
+    """Render the paginated file-list page with subdirectory support."""
     cfg = current_app.config
-    serve_dir = cfg["SERVE_DIR"]
+    base_dir = cfg["SERVE_DIR"]
+
+    # Subdirectory browsing: ?subdir=main
+    subdir = request.args.get("subdir", "").strip("/")
+    serve_dir = os.path.normpath(os.path.join(base_dir, subdir)) if subdir else base_dir
+
+    # Security: ensure we stay inside base_dir
+    base_prefix = os.path.normpath(base_dir)
+    if not (serve_dir == base_prefix or serve_dir.startswith(base_prefix + os.sep)):
+        return "Forbidden", 403
 
     try:
-        entries = _collect_file_entries(serve_dir)
+        dirs, files = _collect_dir_entries(serve_dir)
     except OSError as exc:
         return f"<h1>500 — {exc}</h1>", 500
 
+    # Build directory items (folders)
+    dir_items = [_build_dir_item(d, subdir) for d in dirs]
+    # Build file items
+    file_items = [
+        _build_file_item(name, size, mtime, subdir)
+        for name, size, mtime in files
+    ]
+    items = dir_items + file_items
+
     page = max(1, request.args.get("page", 1, type=int))
     page_size = cfg["PAGE_SIZE"]
-    total = len(entries)
+    total = len(items)
     total_pages = max(1, (total + page_size - 1) // page_size)
     page = min(page, total_pages)
 
     start = (page - 1) * page_size
     end = min(start + page_size, total)
-    shown = entries[start:end]
-
-    items = [
-        _build_file_item(name, size, mtime)
-        for name, size, mtime in shown
-    ]
+    shown = items[start:end]
 
     hostname = os.uname().nodename
 
+    # Breadcrumb parts for display
+    breadcrumbs = []
+    if subdir:
+        parts = subdir.split("/")
+        path_so_far = ""
+        for i, p in enumerate(parts):
+            path_so_far = "/".join(parts[:i + 1])
+            breadcrumbs.append({"name": p, "path": path_so_far, "last": i == len(parts) - 1})
+
+    count_label = f"{len(dirs)} 个目录 · {len(files)} 个文件" if dirs else f"{len(files)} 个文件"
+
     return render_template(
         "index.html",
-        title="📁 文件列表 — OpenClaw Downloads",
-        count=f"{total} 个文件",
-        host=f"OpenClaw — {hostname}",
-        items=items,
+        title=f"📁 {subdir or '文档库'} — AI Repository",
+        count=count_label,
+        host=f"ai_repo — {hostname}",
+        items=shown,
         page=page,
         total_pages=total_pages,
+        subdir=subdir,
+        breadcrumbs=breadcrumbs,
         enumerate=enumerate,
     )
 
@@ -82,13 +108,18 @@ def _serve_directory_listing() -> str:
 def _serve_editor() -> str:
     """Serve the online text editor page for a file."""
     cfg = current_app.config
-    serve_dir = cfg["SERVE_DIR"]
+    base_dir = cfg["SERVE_DIR"]
 
     filename = request.args.get("file", "")
     if not filename:
         return "Missing file parameter", 400
 
-    fullpath = safe_path(serve_dir, filename)
+    # Support subdir for editor too
+    subdir = request.args.get("subdir", "")
+    if subdir:
+        filename = os.path.join(subdir, filename)
+
+    fullpath = safe_path(base_dir, filename)
     if not fullpath or not os.path.isfile(fullpath):
         return "File not found", 404
 
@@ -143,11 +174,14 @@ def _handle_save():
 
 
 def _serve_static_file(filename: str):
-    """Serve a static file from the serve directory."""
+    """Serve a static file from the serve directory, supporting subdirs."""
     from flask import send_from_directory
 
     cfg = current_app.config
-    serve_dir = cfg["SERVE_DIR"]
+    base_dir = cfg["SERVE_DIR"]
+
+    subdir = request.args.get("subdir", "")
+    serve_dir = os.path.normpath(os.path.join(base_dir, subdir)) if subdir else base_dir
 
     # Path traversal check
     abs_path = os.path.normpath(os.path.join(serve_dir, filename))
@@ -268,32 +302,56 @@ def _serve_git_repos() -> str:
 # ── helpers ──
 
 
-def _collect_file_entries(
+def _collect_dir_entries(
     serve_dir: str,
-) -> list[tuple[str, int, float]]:
-    """Scan *serve_dir* and return ``(name, size, mtime)`` tuples sorted by
-    size descending.  Dot-files and directories are skipped."""
-    entries: list[tuple[str, int, float]] = []
+) -> tuple[list[str], list[tuple[str, int, float]]]:
+    """Scan *serve_dir* and return ``(directories, files)`` sorted.
+    Directories sorted alphabetically, files sorted by size descending.
+    Dot-files and dot-directories are skipped."""
+    dirs: list[str] = []
+    files: list[tuple[str, int, float]] = []
     try:
         names = os.listdir(serve_dir)
     except OSError:
-        return entries
+        return dirs, files
 
     for name in names:
-        full = os.path.join(serve_dir, name)
-        if name.startswith(".") or os.path.isdir(full):
+        if name.startswith("."):
             continue
+        full = os.path.join(serve_dir, name)
         try:
             stat = os.stat(full)
-            entries.append((name, stat.st_size, stat.st_mtime))
         except OSError:
             continue
+        if os.path.isdir(full):
+            dirs.append(name)
+        else:
+            files.append((name, stat.st_size, stat.st_mtime))
 
-    entries.sort(key=lambda e: e[1], reverse=True)
-    return entries
+    dirs.sort()
+    files.sort(key=lambda e: e[1], reverse=True)
+    return dirs, files
 
 
-def _build_file_item(name: str, size: int, mtime: float) -> dict:
+def _build_dir_item(dirname: str, parent_subdir: str) -> dict:
+    """Build a directory entry for template rendering."""
+    path = f"{parent_subdir}/{dirname}" if parent_subdir else dirname
+    return {
+        "name": dirname,
+        "emoji": "📂",
+        "size": "—",
+        "date": "",
+        "encoded": urllib.parse.quote(dirname),
+        "show_view": False,
+        "show_edit": False,
+        "is_dir": True,
+        "subdir_path": path,
+    }
+
+
+def _build_file_item(
+    name: str, size: int, mtime: float, subdir: str = ""
+) -> dict:
     """Build a dictionary with file info for template rendering."""
     emoji = file_emoji(name)
     date_str = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
@@ -314,4 +372,6 @@ def _build_file_item(name: str, size: int, mtime: float) -> dict:
         "encoded": encoded,
         "show_view": show_view,
         "show_edit": show_edit,
+        "is_dir": False,
+        "subdir_path": "",
     }

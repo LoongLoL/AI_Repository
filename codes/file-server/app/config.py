@@ -10,7 +10,7 @@ class Config:
 
     serve_dir: str = field(
         default_factory=lambda: os.getenv(
-            "FILESERVER_DIR", "/data/documents/main"
+            "FILESERVER_DIR", "/data/documents"
         )
     )
     port: int = field(

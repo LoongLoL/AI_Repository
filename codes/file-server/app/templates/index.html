@@ -3,28 +3,48 @@
 <div class="wrap">
   <div class="hdr">
     <h1>{{ title }} <span class="bdg">{{ count }}</span></h1>
-    <div class="nav-links">
-      <a href="/git">📦 Git 仓库</a>
-    </div>
     <p>{{ host }}</p>
   </div>
 
+  {# Breadcrumb navigation #}
+  {% if breadcrumbs %}
+  <div class="bc">
+    <a href="/">📁 文档库</a>
+    {% for crumb in breadcrumbs %}
+      <span class="bc-sep">›</span>
+      {% if crumb.last %}
+        <span class="bc-cur">{{ crumb.name }}</span>
+      {% else %}
+        <a href="/?subdir={{ crumb.path }}">{{ crumb.name }}</a>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <div class="lst">
     {% for item in items %}
-    <div class="it">
+    <div class="it{% if item.is_dir %} it-dir{% endif %}">
       <div class="ico">{{ item.emoji }}</div>
       <div class="fi">
+        {% if item.is_dir %}
+        <a href="/?subdir={{ item.subdir_path }}" class="fn fn-link">{{ item.name }}/</a>
+        {% else %}
         <div class="fn">{{ item.name }}</div>
         <div class="fm">{{ item.size }} &middot; {{ item.date }}</div>
+        {% endif %}
       </div>
       <div class="ac">
+        {% if item.is_dir %}
+        <a href="/?subdir={{ item.subdir_path }}" class="v" title="打开目录">📂</a>
+        {% else %}
         {% if item.show_view %}
-        <a href="{{ item.encoded }}" class="v" title="查看" target="_blank">👁</a>
+        <a href="/{{ item.encoded }}{% if subdir %}?subdir={{ subdir }}{% endif %}" class="v" title="查看" target="_blank">👁</a>
         {% endif %}
         {% if item.show_edit %}
-        <a href="/edit?file={{ item.encoded }}" class="e" title="编辑" target="_blank">✏️</a>
+        <a href="/edit?file={{ item.encoded }}{% if subdir %}&subdir={{ subdir }}{% endif %}" class="e" title="编辑" target="_blank">✏️</a>
         {% endif %}
-        <a href="{{ item.encoded }}" class="d" title="下载" download>⬇</a>
+        <a href="/{{ item.encoded }}{% if subdir %}?subdir={{ subdir }}{% endif %}" class="d" title="下载" download>⬇</a>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
@@ -33,7 +53,7 @@
   {% if total_pages > 1 %}
   <div class="pg">
     {% if page > 1 %}
-    <a href="/?page={{ page - 1 }}">&laquo;</a>
+    <a href="/?page={{ page - 1 }}{% if subdir %}&subdir={{ subdir }}{% endif %}">&laquo;</a>
     {% endif %}
 
     {% set ns = namespace(pages=[]) %}
@@ -61,12 +81,12 @@
       {% if num == "..." %}
       <span class="d">…</span>
       {% else %}
-      <a href="/?page={{ num }}"{% if num == page %} class="c"{% endif %}>{{ num }}</a>
+      <a href="/?page={{ num }}{% if subdir %}&subdir={{ subdir }}{% endif %}"{% if num == page %} class="c"{% endif %}>{{ num }}</a>
       {% endif %}
     {% endfor %}
 
     {% if page < total_pages %}
-    <a href="/?page={{ page + 1 }}">&raquo;</a>
+    <a href="/?page={{ page + 1 }}{% if subdir %}&subdir={{ subdir }}{% endif %}">&raquo;</a>
     {% endif %}
   </div>
   {% endif %}

@@ -398,3 +398,53 @@ body.editor-page {
   background: rgba(255, 255, 255, 0.28);
   color: #fff;
 }
+
+/* ================================================================
+   Breadcrumbs
+   ================================================================ */
+
+.bc {
+  padding: 10px 28px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bc a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.bc a:hover {
+  text-decoration: underline;
+}
+
+.bc-sep {
+  color: #ccc;
+}
+
+.bc-cur {
+  color: #333;
+  font-weight: 500;
+}
+
+/* Directory item */
+.it-dir {
+  cursor: pointer;
+}
+
+.it-dir:hover {
+  background: #f0f0ff;
+}
+
+.fn-link {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.fn-link:hover {
+  text-decoration: underline;
+}
