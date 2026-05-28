@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}文件管理器{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161d;
+      --surface2: #1a1e28;
+      --border: #252a38;
+      --border2: #2f3549;
+      --accent: #4fffb0;
+      --accent2: #00c8ff;
+      --accent3: #ff6b6b;
+      --text: #c8d0e0;
+      --text-dim: #5a6380;
+      --text-bright: #eef1f8;
+      --yellow: #ffd166;
+      --purple: #a78bfa;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-display: 'Syne', sans-serif;
+      --radius: 6px;
+      --transition: 150ms cubic-bezier(.4,0,.2,1);
+    }
+
+    html { font-size: 14px; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+    /* ── Layout ── */
+    .shell {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      height: 52px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      white-space: nowrap;
+    }
+    .header-logo::before {
+      content: '▸';
+      color: var(--accent2);
+      font-size: .9rem;
+    }
+    .header-sep { color: var(--border2); }
+
+    /* ── Breadcrumb ── */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+      flex-wrap: wrap;
+      font-size: .8rem;
+      color: var(--text-dim);
+      flex: 1;
+      min-width: 0;
+    }
+    .breadcrumb a {
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: color var(--transition);
+    }
+    .breadcrumb a:hover { color: var(--accent2); }
+    .breadcrumb .sep { color: var(--border2); }
+    .breadcrumb .current { color: var(--text); }
+
+    /* ── Main ── */
+    .main { padding: 1.5rem 2rem; max-width: 1400px; width: 100%; margin: 0 auto; }
+
+    /* ── Section title ── */
+    .section-title {
+      font-family: var(--font-display);
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: .75rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Dir grid ── */
+    .dir-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: .5rem;
+      margin-bottom: 2rem;
+    }
+    .dir-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .75rem 1rem;
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      transition: border-color var(--transition), background var(--transition), transform var(--transition);
+      overflow: hidden;
+    }
+    .dir-card:hover {
+      border-color: var(--accent2);
+      background: var(--surface2);
+      transform: translateY(-1px);
+    }
+    .dir-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      color: var(--yellow);
+    }
+    .dir-name {
+      font-size: .85rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── File table ── */
+    .file-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .file-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .file-table thead tr {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .file-table th {
+      padding: .6rem 1rem;
+      text-align: left;
+      font-size: .7rem;
+      font-weight: 500;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .file-table td {
+      padding: .55rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: .85rem;
+      vertical-align: middle;
+    }
+    .file-table tbody tr:last-child td { border-bottom: none; }
+    .file-table tbody tr {
+      transition: background var(--transition);
+    }
+    .file-table tbody tr:hover { background: var(--surface2); }
+
+    /* ── File name cell ── */
+    .file-name {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      max-width: 380px;
+      overflow: hidden;
+    }
+    .file-name-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text-bright);
+    }
+    .file-ext-badge {
+      font-size: .65rem;
+      padding: .1rem .35rem;
+      border-radius: 3px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      flex-shrink: 0;
+      font-weight: 500;
+      letter-spacing: .04em;
+    }
+
+    /* ── Size & date ── */
+    .file-size, .file-date { color: var(--text-dim); font-size: .8rem; }
+
+    /* ── Action buttons ── */
+    .actions { display: flex; gap: .4rem; justify-content: flex-end; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      padding: .3rem .65rem;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: .75rem;
+      font-weight: 500;
+      text-decoration: none;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+      line-height: 1;
+    }
+    .btn-preview {
+      background: rgba(0,200,255,.08);
+      border-color: rgba(0,200,255,.25);
+      color: var(--accent2);
+    }
+    .btn-preview:hover {
+      background: rgba(0,200,255,.18);
+      border-color: var(--accent2);
+    }
+    .btn-edit {
+      background: rgba(167,139,250,.08);
+      border-color: rgba(167,139,250,.25);
+      color: var(--purple);
+    }
+    .btn-edit:hover {
+      background: rgba(167,139,250,.18);
+      border-color: var(--purple);
+    }
+    .btn-download {
+      background: rgba(79,255,176,.08);
+      border-color: rgba(79,255,176,.25);
+      color: var(--accent);
+    }
+    .btn-download:hover {
+      background: rgba(79,255,176,.18);
+      border-color: var(--accent);
+    }
+    .btn-save {
+      background: var(--accent);
+      color: #0d0f14;
+      border-color: var(--accent);
+      font-weight: 700;
+      padding: .45rem 1.2rem;
+    }
+    .btn-save:hover { filter: brightness(1.1); }
+    .btn-back {
+      background: var(--surface2);
+      border-color: var(--border2);
+      color: var(--text);
+      padding: .45rem 1rem;
+    }
+    .btn-back:hover { border-color: var(--text-dim); }
+
+    /* ── Pagination ── */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .75rem 1rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+      font-size: .8rem;
+    }
+    .pagination-info { color: var(--text-dim); }
+    .pagination-nav { display: flex; gap: .3rem; align-items: center; }
+    .page-btn {
+      padding: .3rem .6rem;
+      border-radius: 4px;
+      border: 1px solid var(--border2);
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      font-family: var(--font-mono);
+      font-size: .75rem;
+      transition: all var(--transition);
+      cursor: pointer;
+    }
+    .page-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+    .page-btn.active {
+      background: var(--accent);
+      color: #0d0f14;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+    .page-btn.disabled {
+      opacity: .35;
+      pointer-events: none;
+    }
+    .page-nums { display: flex; gap: .25rem; }
+
+    /* ── Empty state ── */
+    .empty {
+      padding: 3rem;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: .9rem;
+    }
+    .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; opacity: .4; }
+
+    /* ── Editor ── */
+    .editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: .75rem;
+    }
+    .editor-meta {
+      font-size: .75rem;
+      color: var(--text-dim);
+      display: flex;
+      gap: 1rem;
+    }
+    .editor-meta span { display: flex; align-items: center; gap: .3rem; }
+    .editor-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .editor-toolbar {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: .5rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: .75rem;
+    }
+    .editor-toolbar-left { display: flex; align-items: center; gap: 1rem; color: var(--text-dim); }
+    .editor-filename { color: var(--text-bright); font-weight: 500; }
+    #editor-textarea {
+      width: 100%;
+      min-height: 65vh;
+      background: var(--surface);
+      color: var(--text-bright);
+      border: none;
+      outline: none;
+      padding: 1.25rem 1.5rem;
+      font-family: var(--font-mono);
+      font-size: .9rem;
+      line-height: 1.7;
+      resize: vertical;
+      tab-size: 4;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      padding: .75rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: .85rem;
+      font-weight: 500;
+      z-index: 9999;
+      display: none;
+      animation: slideUp .2s ease;
+    }
+    .toast.success {
+      background: rgba(79,255,176,.15);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+    .toast.error {
+      background: rgba(255,107,107,.15);
+      border: 1px solid var(--accent3);
+      color: var(--accent3);
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Error page ── */
+    .error-page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 5rem 2rem;
+      text-align: center;
+    }
+    .error-code {
+      font-family: var(--font-display);
+      font-size: 4rem;
+      font-weight: 800;
+      color: var(--accent3);
+      line-height: 1;
+      margin-bottom: .5rem;
+    }
+    .error-msg { color: var(--text-dim); margin-bottom: 1.5rem; max-width: 400px; }
+    .error-tip {
+      font-size: .8rem;
+      color: var(--text-dim);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: .75rem 1.25rem;
+      border-radius: var(--radius);
+      max-width: 500px;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: .75rem 2rem;
+      font-size: .7rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: .4rem;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .main { padding: 1rem; }
+      .header { padding: 0 1rem; }
+      .file-table th:nth-child(2),
+      .file-table td:nth-child(2),
+      .file-table th:nth-child(3),
+      .file-table td:nth-child(3) { display: none; }
+      .dir-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    }
+  </style>
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+<div class="shell">
+  <header class="header">
+    <a href="/" class="header-logo">FileServer</a>
+    {% if breadcrumbs %}
+    <span class="header-sep">/</span>
+    <nav class="breadcrumb">
+      <a href="/">根目录</a>
+      {% for crumb in breadcrumbs %}
+        <span class="sep">/</span>
+        {% if not forloop.last %}
+          <a href="/browse/{{ crumb.path }}/">{{ crumb.name }}</a>
+        {% else %}
+          <span class="current">{{ crumb.name }}</span>
+        {% endif %}
+      {% endfor %}
+    </nav>
+    {% else %}
+    <nav class="breadcrumb">
+      <span class="current">根目录</span>
+    </nav>
+    {% endif %}
+  </header>
+
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <span><span class="status-dot"></span>Django File Server</span>
+    <span>{% block footer_info %}{% endblock %}</span>
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -306,7 +306,7 @@ def _collect_dir_entries(
     serve_dir: str,
 ) -> tuple[list[str], list[tuple[str, int, float]]]:
     """Scan *serve_dir* and return ``(directories, files)`` sorted.
-    Directories sorted alphabetically, files sorted by size descending.
+    Directories sorted alphabetically, files sorted by mtime descending (newest first).
     Dot-files and dot-directories are skipped."""
     dirs: list[str] = []
     files: list[tuple[str, int, float]] = []
@@ -329,7 +329,7 @@ def _collect_dir_entries(
             files.append((name, stat.st_size, stat.st_mtime))
 
     dirs.sort()
-    files.sort(key=lambda e: e[1], reverse=True)
+    files.sort(key=lambda e: e[2], reverse=True)
     return dirs, files
 
 

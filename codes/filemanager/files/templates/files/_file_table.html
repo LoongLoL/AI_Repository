@@ -1,0 +1,92 @@
+<div class="file-table-wrap">
+  <table class="file-table">
+    <thead>
+      <tr>
+        <th>文件名</th>
+        <th>大小</th>
+        <th>修改时间</th>
+        <th style="text-align:right">操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in files %}
+      <tr>
+        <td>
+          <div class="file-name">
+            <span class="file-ext-badge">{{ f.ext|default:"—" }}</span>
+            <span class="file-name-text" title="{{ f.name }}">{{ f.name }}</span>
+          </div>
+        </td>
+        <td class="file-size">{{ f.size_human }}</td>
+        <td class="file-date">{{ f.mtime }}</td>
+        <td>
+          <div class="actions">
+            {% if f.can_preview %}
+            <a href="/preview/{{ f.rel_path }}" target="_blank" class="btn btn-preview" title="在浏览器中预览">
+              👁 预览
+            </a>
+            {% endif %}
+            {% if f.can_edit %}
+            <a href="/edit/{{ f.rel_path }}" target="_blank" class="btn btn-edit" title="在线编辑">
+              ✏️ 编辑
+            </a>
+            {% endif %}
+            <a href="/download/{{ f.rel_path }}" target="_blank" class="btn btn-download" title="下载文件">
+              ⬇ 下载
+            </a>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4">
+          <div class="empty">
+            <div class="empty-icon">📄</div>
+            <div>没有文件</div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if show_pagination and files.has_other_pages %}
+  <div class="pagination">
+    <span class="pagination-info">
+      第 {{ files.number }} / {{ files.paginator.num_pages }} 页
+      · 共 {{ files.paginator.count }} 个文件
+    </span>
+    <div class="pagination-nav">
+      {% if files.has_previous %}
+        <a href="?page=1" class="page-btn" title="第一页">«</a>
+        <a href="?page={{ files.previous_page_number }}" class="page-btn">‹</a>
+      {% else %}
+        <span class="page-btn disabled">«</span>
+        <span class="page-btn disabled">‹</span>
+      {% endif %}
+
+      <div class="page-nums">
+        {% for num in files.paginator.page_range %}
+          {% if num == files.number %}
+            <span class="page-btn active">{{ num }}</span>
+          {% elif num >= files.number|add:"-2" and num <= files.number|add:"2" %}
+            <a href="?page={{ num }}" class="page-btn">{{ num }}</a>
+          {% elif num == 1 or num == files.paginator.num_pages %}
+            <a href="?page={{ num }}" class="page-btn">{{ num }}</a>
+          {% elif num == files.number|add:"-3" or num == files.number|add:"3" %}
+            <span class="page-btn disabled">…</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {% if files.has_next %}
+        <a href="?page={{ files.next_page_number }}" class="page-btn">›</a>
+        <a href="?page={{ files.paginator.num_pages }}" class="page-btn" title="最后一页">»</a>
+      {% else %}
+        <span class="page-btn disabled">›</span>
+        <span class="page-btn disabled">»</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>

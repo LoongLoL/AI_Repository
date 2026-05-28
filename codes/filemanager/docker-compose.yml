@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # ============ Django 应用 ============
+  filemanager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: filemanager_app
+    restart: unless-stopped
+
+    # 环境变量配置
+    environment:
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY:-d71f159ce4e64045974101d824403216}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,[::1]}
+      - FILES_ROOT=/data/files
+
+    # 数据卷挂载
+    volumes:
+      # 只读挂载文件根目录到服务器上的文件地址
+      - /root/.openclaw/workspace/projects/ai_repo/documents:/data/files:rw
+      # 日志目录
+      - filemanager_logs:/app/logs
+      # 数据库（如需要）
+      - filemanager_data:/app/db
+
+    # 仅内部暴露，由 nginx 统一对外
+    expose:
+      - "8000"
+
+    # 健康检查（gunicorn 监听 8000）
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - filemanager_network
+
+  # ============ Nginx 反向代理 ============
+  nginx:
+    image: nginx:alpine
+    container_name: filemanager_nginx
+    restart: unless-stopped
+
+    # 端口映射
+    ports:
+      - "7890:80" # 修改为 7890 nginx 端口配置
+      - "7891:443"
+
+    # 配置卷挂载
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+      - nginx_logs:/var/log/nginx
+
+    # 依赖于 filemanager 服务健康检查通过
+    depends_on:
+      filemanager:
+        condition: service_healthy
+
+    # 健康检查（nginx 主进程存活检查）
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - filemanager_network
+
+# ============ 数据卷 ============
+volumes:
+  filemanager_logs:
+    driver: local
+  filemanager_data:
+    driver: local
+  nginx_logs:
+    driver: local
+
+# ============ 网络 ============
+networks:
+  filemanager_network:
+    driver: bridge

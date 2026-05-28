@@ -1,0 +1,157 @@
+{% extends "files/base.html" %}
+
+{% block title %}编辑 {{ filename }} — FileServer{% endblock %}
+
+{% block head_extra %}
+<style>
+  #editor-textarea { font-size: .875rem; }
+  .save-status {
+    font-size: .75rem;
+    color: var(--text-dim);
+    transition: color .3s;
+  }
+  .save-status.saved { color: var(--accent); }
+  .save-status.saving { color: var(--yellow); }
+  .save-status.error { color: var(--accent3); }
+  .keyboard-hint {
+    font-size: .7rem;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .kbd {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    padding: .1rem .3rem;
+    font-size: .65rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="editor-header">
+  <div>
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.4rem;">
+      <a href="{% if parent_path %}/browse/{{ parent_path }}/{% else %}/{% endif %}" class="btn btn-back">
+        ← 返回
+      </a>
+      <span style="color:var(--text-bright);font-weight:500;">{{ filename }}</span>
+      <span style="font-size:.7rem;padding:.1rem .4rem;border-radius:3px;background:var(--surface2);border:1px solid var(--border2);color:var(--purple);">{{ ext }}</span>
+    </div>
+    <div class="editor-meta">
+      <span>📄 {{ file_size }}</span>
+      <span>📂 {{ rel_path }}</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:1rem;">
+    <span class="keyboard-hint">
+      <span class="kbd">Ctrl</span>+<span class="kbd">S</span> 保存
+    </span>
+    <span class="save-status" id="save-status">未修改</span>
+    <button class="btn btn-save" id="save-btn" onclick="saveFile()">💾 保存</button>
+  </div>
+</div>
+
+<div class="editor-wrap">
+  <div class="editor-toolbar">
+    <div class="editor-toolbar-left">
+      <span class="editor-filename">{{ filename }}</span>
+      <span id="char-count" style="color:var(--text-dim);">0 字符</span>
+    </div>
+    <div style="color:var(--text-dim);">UTF-8</div>
+  </div>
+  <textarea id="editor-textarea" spellcheck="false">{{ content }}</textarea>
+</div>
+{% endblock %}
+
+{% block footer_info %}编辑模式 · {{ rel_path }}{% endblock %}
+
+{% block scripts %}
+<script>
+const textarea = document.getElementById('editor-textarea');
+const saveStatus = document.getElementById('save-status');
+const charCount = document.getElementById('char-count');
+let originalContent = textarea.value;
+let modified = false;
+let saveTimer = null;
+
+function updateCharCount() {
+  charCount.textContent = textarea.value.length.toLocaleString() + ' 字符';
+}
+
+function markModified() {
+  if (!modified) {
+    modified = true;
+    saveStatus.className = 'save-status';
+    saveStatus.textContent = '已修改，未保存';
+  }
+}
+
+textarea.addEventListener('input', () => {
+  markModified();
+  updateCharCount();
+});
+
+// Tab 键插入空格
+textarea.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    textarea.value = textarea.value.substring(0, start) + '    ' + textarea.value.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + 4;
+    markModified();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveFile();
+  }
+});
+
+async function saveFile() {
+  if (!modified) return;
+  saveStatus.className = 'save-status saving';
+  saveStatus.textContent = '保存中…';
+
+  const formData = new FormData();
+  formData.append('content', textarea.value);
+  formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+  try {
+    const resp = await fetch(window.location.pathname, {
+      method: 'POST',
+      body: formData
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      originalContent = textarea.value;
+      modified = false;
+      saveStatus.className = 'save-status saved';
+      saveStatus.textContent = '✓ 已保存';
+      showToast('保存成功');
+      setTimeout(() => {
+        if (!modified) saveStatus.textContent = '未修改';
+      }, 3000);
+    } else {
+      throw new Error(data.message);
+    }
+  } catch (err) {
+    saveStatus.className = 'save-status error';
+    saveStatus.textContent = '保存失败';
+    showToast('保存失败：' + err.message, 'error');
+  }
+}
+
+// 离开提示
+window.addEventListener('beforeunload', e => {
+  if (modified) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+updateCharCount();
+</script>
+{% endblock %}

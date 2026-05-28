@@ -1,0 +1,13 @@
+{% extends "files/base.html" %}
+{% block title %}错误 — FileServer{% endblock %}
+{% block content %}
+<div class="error-page">
+  <div class="error-code">ERR</div>
+  <div class="error-msg">{{ message }}</div>
+  {% if tip %}
+  <div class="error-tip">💡 {{ tip }}</div>
+  {% endif %}
+  <br>
+  <a href="/" class="btn btn-back" style="margin-top:.5rem">← 返回首页</a>
+</div>
+{% endblock %}

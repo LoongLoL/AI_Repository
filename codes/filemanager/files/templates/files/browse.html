@@ -1,0 +1,31 @@
+{% extends "files/base.html" %}
+
+{% block title %}{% if breadcrumbs %}{% with breadcrumbs|last as c %}{{ c.name }} — {% endwith %}{% endif %}FileServer{% endblock %}
+
+{% block content %}
+{% if dirs %}
+  <div class="section-title">子目录</div>
+  <div class="dir-grid">
+    {% for d in dirs %}
+    <a href="/browse/{{ d.rel_path }}/" class="dir-card">
+      <span class="dir-icon">📁</span>
+      <span class="dir-name" title="{{ d.name }}">{{ d.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if page_obj %}
+  <div class="section-title">文件列表</div>
+  {% include "files/_file_table.html" with files=page_obj show_pagination=True %}
+{% else %}
+  {% if not dirs %}
+  <div class="empty">
+    <div class="empty-icon">📂</div>
+    <div>该目录为空</div>
+  </div>
+  {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block footer_info %}{{ dirs|length }} 个子目录 · {{ total_files }} 个文件{% endblock %}

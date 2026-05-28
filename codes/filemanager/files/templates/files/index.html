@@ -1,0 +1,32 @@
+{% extends "files/base.html" %}
+
+{% block title %}根目录 — FileServer{% endblock %}
+
+{% block content %}
+{% if dirs or files %}
+  {% if dirs %}
+  <div class="section-title">目录</div>
+  <div class="dir-grid">
+    {% for d in dirs %}
+    <a href="/browse/{{ d.rel_path }}/" class="dir-card">
+      <span class="dir-icon">📁</span>
+      <span class="dir-name" title="{{ d.name }}">{{ d.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if files %}
+  <div class="section-title">根目录文件</div>
+  {% include "files/_file_table.html" with files=files show_pagination=False %}
+  {% endif %}
+
+{% else %}
+  <div class="empty">
+    <div class="empty-icon">📭</div>
+    <div>目录为空</div>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block footer_info %}{{ dirs|length }} 个子目录{% endblock %}
